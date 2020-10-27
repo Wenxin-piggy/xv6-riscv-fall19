@@ -29,20 +29,22 @@ ls(char *path)
   int fd;
   struct dirent de;
   struct stat st;
-
+  printf("path = %s\n",path);
   if((fd = open(path, 0)) < 0){
     fprintf(2, "ls: cannot open %s\n", path);
     return;
   }
+  printf("fd = %d\n",fd);
 
   if(fstat(fd, &st) < 0){
     fprintf(2, "ls: cannot stat %s\n", path);
     close(fd);
     return;
   }
-
+  printf("FILE = %d,DIR = %d,st.type = %d\n",T_FILE,T_DIR,st.type);
   switch(st.type){
   case T_FILE:
+    printf("%s %s\n",path,fmtname(path));
     printf("%s %d %d %l\n", fmtname(path), st.type, st.ino, st.size);
     break;
 
