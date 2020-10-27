@@ -12,11 +12,13 @@
 int getPrimes(int *pipe1,int size){
     int count = 0;
     close(pipe1[1]);
-    int first_num;
+    int first_num = -1;
     // printf("size = %d\n",size);
-    if(read(pipe1[0],&first_num,sizeof(first_num)) != 0){
+    if(read(pipe1[0],&first_num,sizeof(first_num)) > 0){
         printf("prime %d\n",first_num);
         count ++;
+    }else{
+        printf("read failed!\n");
     }
     if(size == 1){
         return 1;
@@ -28,7 +30,7 @@ int getPrimes(int *pipe1,int size){
     int buf;//除了第一个数之外的其他数
     int count_to_next = 0;
     int buffer[34];
-    while((read(pipe1[0],&buf,sizeof(buf)) != 0 )&&(count < size)){
+    while((read(pipe1[0],&buf,sizeof(buf)) > 0 )&&(count < size)){
         //从左边读取数据
         count ++;
         if((buf % first_num) != 0){//可以整除，将其传过去
