@@ -254,12 +254,12 @@ void parsecmd(char* buf){
         char * argv_2[MAXARG];
         char argv[MAXARG][25];
         int argv_i = -1;
+        char input_fileName[100];
+        char output_fileName[100];
         input_flag = isredirectInput(command1,&input_pos);
         output_flag = isredirectOutput(command1,&output_pos);
         if((input_flag == 1) && (output_flag == 1)){
             //有输入也有输出
-            char input_fileName[100];
-            char output_fileName[100];
             for(int i = 0;i < MAXARG;i ++)  argv_2[i] = argv[i];
             argv_i = getrealcommand(input_pos,command1,argv_2);
             getFileName(input_pos + 1,output_pos,command1,input_fileName);
@@ -287,7 +287,7 @@ void parsecmd(char* buf){
             }
         }
         else if ((input_flag == 1)&&(output_flag == 0)){
-            char input_fileName[100];
+            
             for(int i = 0;i < MAXARG;i ++)  argv_2[i] = argv[i];
             getrealcommand(input_pos,command1,argv_2);
             getFileName(input_pos + 1,strlen(command1),command1,input_fileName);
@@ -309,7 +309,7 @@ void parsecmd(char* buf){
             }
         }
         else if((input_flag == 0) && (output_flag == 1)){
-            char output_fileName[100];
+            
             for(int i = 0;i < MAXARG;i ++)  argv_2[i] = argv[i];
             argv_i = getrealcommand(output_pos,command1,argv_2);
             getFileName(output_pos + 1,strlen(command1),command1,output_fileName);
