@@ -66,6 +66,54 @@ int parsecmdwithpipe(char* buf,char * command1,char * command2){
         return flag;
     }
 }
+
+int isredirectInput(char *command,int *input_pos){
+    int input_flag = 0;
+    for(int i = 0;i < strlen(command);i ++){
+        if(command[i] == '<'){
+            input_flag = 1;
+            *input_pos = i;
+        }
+    }
+    return input_flag;
+}
+
+int isredirectOutput(char *command,int *output_pos){
+    int output_flag = 0;
+    for(int i = 0;i < strlen(command);i ++){
+        if(command[i] == '>'){
+            output_flag = 1;
+            *output_pos = i;
+        }
+    }
+    return output_flag;
+}
+
+void getFileName(int start,int end,char *command,char * file_name){
+    int t = 0;
+    for(int i = start;i < end;i ++){
+        if(command[i] == ' ')  continue;
+        file_name[t ++] = command[i]; 
+    }
+    file_name[t] = 0;
+}
+int getrealcommand(int endpos,char * command,char ** argv){
+    char temp[512];
+    int temp_i = 0;
+    int argv_i = -1;
+    for(int i = 0;i < endpos;i ++){
+        if(command[i] == ' '){
+            temp[temp_i] = 0;
+            argv_i ++;
+            memmove(argv[argv_i],temp,strlen(temp));
+            temp_i = 0;
+        }
+        else{
+            temp[temp_i ++] = command[i];
+        }
+    }
+    return argv_i;
+}
 void parsecmd(char* buf){
     char command1[100];
     char command2[100];
@@ -83,42 +131,17 @@ void parsecmd(char* buf){
             char * argv_2[MAXARG];
             char argv[MAXARG][25];
             int argv_i = -1;
-            for(int i = 0;i < strlen(command1);i ++){
-                if(command1[i] == '<'){
-                    input_flag = 1;
-                    input_pos = i;
-                }
-            }
+            input_flag = isredirectInput(command1,&input_pos);
             if(input_flag == 1){
-                char temp[512];
-                int temp_i = 0;
                 char input_fileName[100];
-                for(int i = 0;i < input_pos;i ++){
-                    if(command1[i] == ' '){
-                        temp[temp_i] = 0;
-                        argv_i ++;
-                        memmove(argv[argv_i],temp,strlen(temp));
-                        temp_i = 0;
-                    }
-                    else{
-                        temp[temp_i ++] = command1[i];
-                    }
-                }
+                for(int i = 0;i < MAXARG;i ++)  argv_2[i] = argv[i];
+                argv_i = getrealcommand(input_pos,command1,argv_2);
+                getFileName(input_pos + 1,strlen(command1),command1,input_fileName);
                 int t = 0;
-                for(int i = input_pos + 1;i < strlen(command1);i ++){
-                    if(command1[i] == ' ')  continue;
-                    input_fileName[t ++] = command1[i]; 
-                }
-                input_fileName[t] = 0;
-                t = 0;
                 for(int i = 0;i <= argv_i;i ++){
                     argv_2[t ++] = argv[i];
                 }
                 argv_2[t] = NULL;
-                t = 0;
-                while(argv_2[t] != NULL){
-                    t ++;
-                }
                 close(0);
                 if(open(input_fileName,O_RDONLY) < 0){
                     fprintf(2, "open %s failed\n", input_fileName);
@@ -148,11 +171,11 @@ void parsecmd(char* buf){
                 temp[temp_i] = 0;
                 argv_i ++;
                 memmove(argv[argv_i],temp,strlen(temp));
-                temp_i = 0;
+                int t = 0;
                 for(int i = 0;i <= argv_i;i ++){
-                    // printf("argv=%s/endd\n",argv[i]);
-                    argv_2[i] = argv[i];
+                    argv_2[t ++] = argv[i];
                 }
+                argv_2[t] = NULL;
                 close(1);
                 dup(p[1]);
                 close(p[0]);
@@ -167,38 +190,17 @@ void parsecmd(char* buf){
             char * argv_2[MAXARG];
             char argv[MAXARG][25];
             int argv_i = -1;
-            for(int i = 0;i < strlen(command2);i ++){
-                if(command2[i] == '>'){
-                    output_flag = 1;
-                    output_pos = i;
-                }
-            }
+            output_flag = isredirectOutput(command2,&output_pos);
             if(output_flag == 1){
-                char temp[512];
-                int temp_i = 0;
                 char output_fileName[100];
-                for(int i = 0;i < output_pos;i ++){
-                    if(command2[i] == ' '){
-                        temp[temp_i] = 0;
-                        argv_i ++;
-                        memmove(argv[argv_i],temp,strlen(temp));
-                        temp_i = 0;
-                    }
-                    else{
-                        temp[temp_i ++] = command2[i];
-                    }
-                }
+                for(int i = 0;i < MAXARG;i ++)  argv_2[i] = argv[i];
+                argv_i = getrealcommand(output_pos,command2,argv_2);
+                getFileName(output_pos + 1,strlen(command2),command2,output_fileName);
                 int t = 0;
-                for(int i = output_pos + 1;i < strlen(command2);i ++){
-                    if(command2[i] == ' ')  continue;
-                        output_fileName[t ++] = command2[i]; 
-                }
-                output_fileName[t] = 0;
                 for(int i = 0;i <= argv_i;i ++){
-                    argv_2[i] = argv[i];
-                    // printf("2:argv_2 = %s\n",argv_2[i]);
+                    argv_2[t ++] = argv[i];
                 }
-                // printf("OfileName=%s/endd\n",output_fileName);
+                argv_2[t] =NULL;
                 close(1);
                 if(open(output_fileName,O_WRONLY | O_CREATE) < 0){
                     fprintf(2, "open %s failed\n", output_fileName);
@@ -206,7 +208,6 @@ void parsecmd(char* buf){
                 }else{
                     // fprintf(2,"open %s ok\n",output_fileName);
                 }
-                
             }
             else{
                 char temp[512];
@@ -246,8 +247,6 @@ void parsecmd(char* buf){
     }
     else{
         //中间没有管道
-        // printf("pipe_flag = %d\n",pipe_flag);
-        // printf("command1 = %s//end\n",command1);
         int input_flag = 0;
         int output_flag = 0;
         int input_pos = -1;
@@ -255,54 +254,21 @@ void parsecmd(char* buf){
         char * argv_2[MAXARG];
         char argv[MAXARG][25];
         int argv_i = -1;
-        for(int i = 0;i < strlen(command1);i ++){
-            if(command1[i] == '<'){
-                input_flag = 1;
-                input_pos = i;
-            }
-            else if(command1[i] == '>'){
-                output_flag = 1;
-                output_pos = i;
-            }
-        }
+        input_flag = isredirectInput(command1,&input_pos);
+        output_flag = isredirectOutput(command1,&output_pos);
         if((input_flag == 1) && (output_flag == 1)){
             //有输入也有输出
-            char temp[512];
-            int temp_i = 0;
             char input_fileName[100];
             char output_fileName[100];
-            for(int i = 0;i < input_pos;i ++){
-                if(command1[i] == ' '){
-                    temp[temp_i] = 0;
-                    argv_i ++;
-                    memmove(argv[argv_i],temp,strlen(temp));
-                    temp_i = 0;
-
-                }
-                else{
-                    temp[temp_i ++] = command1[i];
-                }
-            }
-            // //得到了command
-            // argv_i = getrealcommand(argv,command1,input_pos);
+            for(int i = 0;i < MAXARG;i ++)  argv_2[i] = argv[i];
+            argv_i = getrealcommand(input_pos,command1,argv_2);
+            getFileName(input_pos + 1,output_pos,command1,input_fileName);
+            getFileName(output_pos + 1,strlen(command1),command1,output_fileName);
             int t = 0;
-            for(int i = input_pos + 1;i < output_pos;i ++){
-                if(command1[i] == ' ')  continue;
-                input_fileName[t ++] = command1[i]; 
-            }
-            input_fileName[t] = 0;
-            t = 0;
-            for(int i = output_pos + 1;i < strlen(command1);i ++){
-                if(command1[i] == ' ')  continue;
-                output_fileName[t ++] = command1[i];
-            }
-            output_fileName[t] = 0;
             for(int i = 0;i <= argv_i;i ++){
-                argv_2[i] = argv[i];
-                // printf("argv=%s/endd\n",argv[i]);
+                argv_2[t ++] = argv[i];
             }
-            // printf("IfileName=%s/endd\n",input_fileName);
-            // printf("OutfileName=%s/endd\n",output_fileName);
+            argv_2[t] = NULL;
             close(0);
             if(open(input_fileName,O_RDONLY) < 0){
                 fprintf(2, "10open %s failed\n", input_fileName);
@@ -321,32 +287,15 @@ void parsecmd(char* buf){
             }
         }
         else if ((input_flag == 1)&&(output_flag == 0)){
-            char temp[512];
-            int temp_i = 0;
             char input_fileName[100];
-            for(int i = 0;i < input_pos;i ++){
-                if(command1[i] == ' '){
-                    temp[temp_i] = 0;
-                    argv_i ++;
-                    memmove(argv[argv_i],temp,strlen(temp));
-                    temp_i = 0;
-
-                }
-                else{
-                    temp[temp_i ++] = command1[i];
-                }
-            }
+            for(int i = 0;i < MAXARG;i ++)  argv_2[i] = argv[i];
+            getrealcommand(input_pos,command1,argv_2);
+            getFileName(input_pos + 1,strlen(command1),command1,input_fileName);
             int t = 0;
-            for(int i = input_pos + 1;i < strlen(command1);i ++){
-                if(command1[i] == ' ')  continue;
-                input_fileName[t ++] = command1[i]; 
-            }
-            input_fileName[t] = 0;
             for(int i = 0;i <= argv_i;i ++){
-                // printf("argv=%s/endd\n",argv[i]);
-                argv_2[i] = argv[i];
+                argv_2[t ++] = argv[i];
             }
-            // printf("IfileName=%s/endd\n",input_fileName);
+            argv_2[t] = NULL;
             close(0);
             if(open(input_fileName,O_RDONLY) < 0){
                 fprintf(2, "open %s failed\n", input_fileName);
@@ -360,32 +309,15 @@ void parsecmd(char* buf){
             }
         }
         else if((input_flag == 0) && (output_flag == 1)){
-            char temp[512];
-            int temp_i = 0;
             char output_fileName[100];
-            for(int i = 0;i < output_pos;i ++){
-                if(command1[i] == ' '){
-                    temp[temp_i] = 0;
-                    argv_i ++;
-                    memmove(argv[argv_i],temp,strlen(temp));
-                    temp_i = 0;
-
-                }
-                else{
-                    temp[temp_i ++] = command1[i];
-                }
-            }
+            for(int i = 0;i < MAXARG;i ++)  argv_2[i] = argv[i];
+            argv_i = getrealcommand(output_pos,command1,argv_2);
+            getFileName(output_pos + 1,strlen(command1),command1,output_fileName);
             int t = 0;
-            for(int i = output_pos + 1;i < strlen(command1);i ++){
-                if(command1[i] == ' ')  continue;
-                output_fileName[t ++] = command1[i]; 
-            }
-            output_fileName[t] = 0;
             for(int i = 0;i <= argv_i;i ++){
-                // printf("argv=%s/endd\n",argv[i]);
-                argv_2[i] = argv[i];
+                argv_2[t ++] = argv[i];
             }
-            // printf("OfileName=%s/endd\n",output_fileName);
+            argv_2[t] = NULL;
             close(1);
             if(open(output_fileName,O_WRONLY | O_CREATE) < 0 ){
                 fprintf(2, "open %s failed\n",output_fileName);
