@@ -100,7 +100,6 @@ int
 one(char *cmd, char *expect, int tight)
 {
   char infile[12], outfile[12];
-
   randstring(infile, sizeof(infile));
   randstring(outfile, sizeof(outfile));
 
