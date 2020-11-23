@@ -12,11 +12,12 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
-
+//NFILE会存在限制
+//remove file[NFILE]
 struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
-  struct file file[NFILE];
+  // struct file file[NFILE];
 } ftable;
 
 void
@@ -30,17 +31,24 @@ struct file*
 filealloc(void)
 {
   struct file *f;
-
-  acquire(&ftable.lock);
-  for(f = ftable.file; f < ftable.file + NFILE; f++){
-    if(f->ref == 0){
-      f->ref = 1;
-      release(&ftable.lock);
-      return f;
-    }
+  f = bd_malloc(sizeof(struct file));
+  if(f){
+    f -> ref = 1;
+    return f;
   }
-  release(&ftable.lock);
-  return 0;
+  else{
+    return 0;
+  }
+  // acquire(&ftable.lock);
+  // for(f = ftable.file; f < ftable.file + NFILE; f++){
+  //   if(f->ref == 0){
+  //     f->ref = 1;
+  //     release(&ftable.lock);
+  //     return f;
+  //   }
+  // }
+  // release(&ftable.lock);
+  // return 0;
 }
 
 // Increment ref count for file f.
@@ -71,8 +79,8 @@ fileclose(struct file *f)
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;
+  bd_free(f);
   release(&ftable.lock);
-
   if(ff.type == FD_PIPE){
     pipeclose(ff.pipe, ff.writable);
   } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
