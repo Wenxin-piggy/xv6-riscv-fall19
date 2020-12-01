@@ -378,7 +378,8 @@ iunlockput(struct inode *ip)
 static uint
 bmap(struct inode *ip, uint bn)
 {
-  uint addr, *a;
+  uint addr,*a;
+  uint *b;
   struct buf *bp;
 
   if(bn < NDIRECT){
@@ -387,7 +388,7 @@ bmap(struct inode *ip, uint bn)
     return addr;
   }
   bn -= NDIRECT;
-
+  //第一个间接块
   if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0)
@@ -399,6 +400,32 @@ bmap(struct inode *ip, uint bn)
       log_write(bp);
     }
     brelse(bp);
+    return addr;
+  }
+  //第二个间接块
+  bn -= NINDIRECT;
+  struct buf *bp2;
+  if(bn < NNINDIRECT){
+    // Load indirect block, allocating if necessary.
+    if((addr = ip -> addrs[NDIRECT + 1]) == 0)
+      ip->addrs[NDIRECT + 1] = addr = balloc(ip->dev);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    uint bn_id = bn / NINDIRECT;//得到其在第一层的位置
+    if((addr = a[bn_id]) == 0){
+      a[bn_id] = addr = balloc(ip->dev);
+      log_write(bp);
+    } 
+    brelse(bp);     
+    bp2 = bread(ip->dev, addr);
+    b = (uint*)bp2->data;
+    uint bn_id2 = bn % NINDIRECT;//得到其在第一层的位置
+    if((addr = b[bn_id2]) == 0){
+      b[bn_id2] = addr = balloc(ip->dev);
+      log_write(bp2);
+    }
+    
+    brelse(bp2);
     return addr;
   }
 
@@ -436,6 +463,29 @@ itrunc(struct inode *ip)
     ip->addrs[NDIRECT] = 0;
   }
 
+  if(ip -> addrs[NDIRECT + 1]){
+    //第二级间接
+    bp = bread(ip -> dev,ip -> addrs[NDIRECT + 1]);
+    //得到这个东西的内容
+    a = (uint*)bp->data;
+    struct buf *bbp;
+    uint *b;
+    for(j = 0;j < NINDIRECT;j ++){
+      if(a[j]){
+        bbp = bread(ip -> dev, a[j]);
+        b = (uint*)bbp->data;
+        for(int t = 0;t < NINDIRECT;t ++){
+          if(b[t])
+            bfree(ip -> dev,b[t]);
+        }
+        brelse(bbp);
+        bfree(ip->dev, a[j]);
+      }
+    }
+    brelse(bp);
+    bfree(ip->dev, ip->addrs[NDIRECT + 1]);
+    ip->addrs[NDIRECT + 1] = 0;
+  }
   ip->size = 0;
   iupdate(ip);
 }
