@@ -283,6 +283,7 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
+#define MAXDEPTH 10
 uint64
 sys_open(void)
 {
@@ -296,7 +297,6 @@ sys_open(void)
     return -1;
 
   begin_op(ROOTDEV);
-
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
@@ -311,6 +311,41 @@ sys_open(void)
     ilock(ip);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
+      end_op(ROOTDEV);
+      return -1;
+    }
+  }
+  // 判断是否是Link
+  if(ip->type == T_SYMLINK && !(omode&O_NOFOLLOW)) {   // 是否需要提前判断？
+    // 编写一个递归函数，handle一下SYM_LINK
+    // ip = (struct inode*)handle_link(ip,0);
+    int i;
+    int fail = 0;
+    for(i=0;i<MAXDEPTH;i++) {
+      char linkpath[MAXPATH];
+      memset(linkpath,0,MAXPATH);
+      if(ip == 0) {
+        fail = 1;
+        break;
+      }
+      if(ip->type == T_SYMLINK) {
+        if(readi(ip, 0, (uint64)path, 0, MAXPATH) < 0) {
+          fail = 1;
+          break;
+        } 
+        iunlockput(ip);
+        if((ip = namei(path)) == 0) {
+          // printf("can't locate");
+          fail = 1;
+          break;
+        }
+        ilock(ip);
+      } else {
+        // printf("path=%s\n",path);
+        break;
+      }
+    }
+    if(fail || i == MAXDEPTH) {
       end_op(ROOTDEV);
       return -1;
     }
@@ -341,8 +376,7 @@ sys_open(void)
   f->off = 0;
   f->readable = !(omode & O_WRONLY);
   f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
-
-  iunlock(ip);
+  iunlock(ip); 
   end_op(ROOTDEV);
 
   return fd;
@@ -483,3 +517,23 @@ sys_pipe(void)
   return 0;
 }
 
+uint64 sys_symlink(void) {
+  char target[MAXPATH];
+  char path[MAXPATH];
+  struct inode *ip;
+  
+  begin_op(ROOTDEV);  
+  if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) == 0 || (ip = create(path, T_SYMLINK, 0, 0)) == 0) {  // 短路特性，前面不满足，后面也不会执行
+    end_op(ROOTDEV);
+    return -1;
+  }
+  if(writei(ip, 0, (uint64)target, 0, MAXPATH) < 0) { // 如果写失败了，返回
+    iunlockput(ip);
+    end_op(ROOTDEV);
+    return -1;
+  }
+  iunlockput(ip);
+  end_op(ROOTDEV);
+  // printf("SYMLINK HERE\n");
+  return 0;
+}
