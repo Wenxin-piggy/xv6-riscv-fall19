@@ -12,7 +12,6 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
-//NFILE会存在限制
 //remove file[NFILE]
 struct devsw devsw[NDEV];
 struct {
@@ -39,16 +38,6 @@ filealloc(void)
   else{
     return 0;
   }
-  // acquire(&ftable.lock);
-  // for(f = ftable.file; f < ftable.file + NFILE; f++){
-  //   if(f->ref == 0){
-  //     f->ref = 1;
-  //     release(&ftable.lock);
-  //     return f;
-  //   }
-  // }
-  // release(&ftable.lock);
-  // return 0;
 }
 
 // Increment ref count for file f.
@@ -79,6 +68,7 @@ fileclose(struct file *f)
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;
+  //释放文件描述符
   bd_free(f);
   release(&ftable.lock);
   if(ff.type == FD_PIPE){

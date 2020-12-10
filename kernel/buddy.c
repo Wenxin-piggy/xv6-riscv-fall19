@@ -269,32 +269,12 @@ bd_initfree_pair(int k, int bi,int flag) {//0表示处理左边，1表示处理�
       //将右边的放进去
       int max_num = buddy > bi?buddy:bi;
       lst_push(&bd_sizes[k].free, addr(k, max_num));
-      // if(bi % 2 == 1){
-      //   lst_push(&bd_sizes[k].free, addr(k, bi));   // put buddy on free list
-      // }
-      // else{
-      //   lst_push(&bd_sizes[k].free, addr(k, buddy));
-      // }
     }
     else{
       int min_num = buddy < bi?buddy:bi;
       lst_push(&bd_sizes[k].free, addr(k, min_num));
-      // if(bi % 2 == 0){
-      //   lst_push(&bd_sizes[k].free, addr(k, bi));   // put buddy on free list
-      // }
-      // else{
-      //   lst_push(&bd_sizes[k].free, addr(k, buddy));
-      // }
     }
   }
-  // if(bit_isset(bd_sizes[k].alloc, bi) !=  bit_isset(bd_sizes[k].alloc, buddy)) {
-  //   // one of the pair is free
-  //   free = BLK_SIZE(k);
-  //   if(bit_isset(bd_sizes[k].alloc, bi))
-  //     lst_push(&bd_sizes[k].free, addr(k, buddy));   // put buddy on free list
-  //   else
-  //     lst_push(&bd_sizes[k].free, addr(k, bi));      // put bi on free list
-  // }
   return free;
 }
   
@@ -361,6 +341,7 @@ bd_init(void *base, void *end) {
   // initialize free list and allocate the alloc array for each size k
   for (int k = 0; k < nsizes; k++) {
     lst_init(&bd_sizes[k].free);
+    //change 8 to 16
     sz = sizeof(char)* ROUNDUP(NBLK(k), 16)/16;
     bd_sizes[k].alloc = p;
     memset(bd_sizes[k].alloc, 0, sz);
